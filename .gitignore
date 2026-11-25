@@ -1,0 +1,21 @@
+# 模型与运行时体积过大，不进仓库（走网盘分发）
+models/
+runtime/
+*.gguf
+*.safetensors
+*.exe
+*.safetensors.*
+*.gguf.*
+
+# 运行期产物
+chats/
+logs/
+output/
+.lock
+
+# 其它
+__pycache__/
+*.pyc
+*.spec
+build/
+dist/
