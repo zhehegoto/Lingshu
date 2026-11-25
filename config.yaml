@@ -1,0 +1,30 @@
+gateway:
+  host: 127.0.0.1
+  port: 8000
+sd:
+  port: 8081
+  exe: runtime\sd\sd-server.exe
+llama:
+  port: 8099
+  exe: runtime\llama\llama-server.exe
+models:
+  diffusion: models\qwen-image-2.1-turbo-Q5_K_M.gguf
+  llm: models\Qwen3VL-8B-Instruct-Q4_K_M.gguf
+  vae: models\qwen_image_2.1_vae_bf16.safetensors
+  gemma: models\Gemma-4-E4B-Uncensored-HauhauCS-Aggressive-Q5_K_M.gguf
+  mmproj: models\mmproj-Qwen3VL-8B-Instruct-F16.gguf
+output:
+  dir: output
+logs:
+  dir: logs
+chats:
+  dir: chats
+queue:
+  max_size: 4
+settings:
+  steps: 8
+  max_tokens: 1024
+  thinking: true
+  n_ctx: 4096
+  vae_tile: 384
+  batch_count_default: 1

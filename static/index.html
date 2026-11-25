@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>灵枢</title>
+<link rel="icon" type="image/x-icon" href="/static/favicon.ico?v=30">
+<link rel="stylesheet" href="/static/style.css?v=44">
+<link rel="stylesheet" href="/static/style-v2.css?v=18">
+<link rel="stylesheet" id="theme-light" href="/static/style-light.css?v=4">
+<script>
+try {
+  const mode = localStorage.getItem("lingshu-theme") || "light";
+  document.documentElement.dataset.theme = mode;
+  if (mode === "dark") document.getElementById("theme-light").disabled = true;
+} catch (e) {}
+</script>
+</head>
+<body>
+<div class="shell">
+  <header class="nav topbar" id="nav">
+    <div class="nav-brand"><span class="brand-mark">灵枢</span><span class="brand-sub">ZEROSOURCE</span></div>
+    <nav class="nav-list">
+      <a href="#/run" data-page="run" class="nav-item" title="运行" aria-label="运行">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4l13 8-13 8V4z"/></svg>
+        <span>运行</span></a>
+      <a href="#/chat" data-page="chat" class="nav-item" title="对话" aria-label="对话">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7A2.5 2.5 0 0 1 17.5 15H10l-5 4v-4H6.5A2.5 2.5 0 0 1 4 12.5v-7z"/></svg>
+        <span>对话</span></a>
+      <a href="#/agent" data-page="agent" class="nav-item" title="Agent" aria-label="Agent">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="7" width="16" height="12" rx="3"/><circle cx="9" cy="13" r="1.4"/><circle cx="15" cy="13" r="1.4"/><path d="M12 3v4M8 19v2M16 19v2"/></svg>
+        <span>Agent</span></a>
+      <a href="#/draw" data-page="draw" class="nav-item" title="画图" aria-label="画图">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M4 17l5.5-5 4 3.5 3-2.5L20 17"/></svg>
+        <span>画图</span></a>
+      <a href="#/settings" data-page="settings" class="nav-item" title="设置" aria-label="设置">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 12h4M12 12h8M4 17h7M15 17h5"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="13" cy="17" r="2"/></svg>
+        <span>设置</span></a>
+    </nav>
+    <div class="nav-foot">
+      <span class="dot" id="nav-dot"></span>
+      <span id="nav-state">连接中…</span>
+      <span id="nav-vram" class="nav-vram"></span>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <!-- ===== 运行：硬件 / 显存 / 参数 / 日志 ===== -->
+    <section class="page" id="page-run" hidden>
+      <header class="page-head">
+        <div><h1>运行</h1><p class="sub" id="ov-sub">正在读取本机状态…</p></div>
+        <div class="head-actions">
+          <span class="pill" id="run-state">待机</span>
+          <button class="ghost" id="ov-open-output">打开作品文件夹</button>
+          <button class="primary" id="run-start-all">启动全部模型</button>
+        </div>
+      </header>
+
+      <div class="run-dashboard">
+        <div class="run-overview-col">
+          <div class="ov-hero card" id="ov-hero">
+            <div class="ov-hero-main">
+              <div class="eyebrow">ZEROSOURCE · 本机工作台</div>
+              <h2 id="ov-title">灵枢</h2>
+              <p class="muted" id="ov-desc">硬件自动识别 → 参数自动适配。需要联网时，在对话工具里开启搜索或读网页。</p>
+              <div class="ov-chips" id="ov-service-chips"></div>
+            </div>
+            <div class="ov-hero-side">
+              <span class="ov-kv"><i>上下文</i><b id="ov-ctx">–</b></span>
+              <span class="ov-kv"><i>步数</i><b id="ov-steps">–</b></span>
+              <span class="ov-kv"><i>VAE</i><b id="ov-tile">–</b></span>
+            </div>
+          </div>
+          <div class="ov-grid" id="ov-hardware"></div>
+        </div>
+
+        <div class="run-monitor-col">
+          <div class="card vram-card">
+            <div class="card-head"><h3>显存监测</h3><span class="mono small" id="mon-vram-now">—</span></div>
+            <canvas id="vram-chart" height="190"></canvas>
+            <div class="muted small" id="mon-vram-note">最近 5 分钟采样，来源 logs/gateway.vram.csv</div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>服务与队列</h3><button class="link-btn" id="mon-refresh">刷新</button></div>
+            <div id="mon-services"></div>
+            <div class="card-head" style="margin-top:16px"><h3>队列</h3></div>
+            <div id="mon-queue" class="muted small">队列 0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="run-lower" id="run-lower">
+        <div class="card model-services run-model-services">
+          <div class="card-head"><h3>模型与服务</h3>
+            <div class="head-inline">
+              <span class="muted small">选完即切换</span>
+              <button class="link-btn" id="btn-model-manager">管理模型</button>
+            </div></div>
+          <div class="svc-row">
+            <div class="svc-main">
+              <label class="mini-label">对话模型</label>
+              <select id="run-chat-model" class="text-input"><option>扫描中…</option></select>
+              <div class="muted small" id="run-model-note"></div>
+            </div>
+            <div class="svc-actions">
+              <span class="pill" id="run-ready">已关闭</span>
+              <button class="ghost" id="run-chat-toggle">启动对话模型</button>
+            </div>
+          </div>
+          <div class="svc-row">
+            <div class="svc-main">
+              <label class="mini-label">画图模型</label>
+              <select id="run-sd-model" class="text-input"><option>扫描中…</option></select>
+              <div class="muted small" id="run-sd-model-note"></div>
+            </div>
+            <div class="svc-actions">
+              <span class="pill" id="run-sd-ready">已关闭</span>
+              <button class="ghost" id="run-sd-toggle">启动画图模型</button>
+            </div>
+          </div>
+          <div class="model-drop" id="model-drop">
+            <input type="file" id="model-drop-input" accept=".gguf,.safetensors" multiple hidden>
+            <div class="model-drop-main">
+              <b>把模型文件拖到这里</b>
+              <span class="muted small">.gguf / .safetensors，自动放进 models 目录；也可以点这里选文件</span>
+            </div>
+            <div class="model-drop-bar" id="model-drop-bar" hidden>
+              <div class="bar"><i id="model-drop-fill"></i></div>
+              <span class="muted small" id="model-drop-status">0%</span>
+            </div>
+            <ul class="model-drop-list" id="model-drop-list"></ul>
+          </div>
+        </div>
+
+        <div class="card log-card" id="run-log-card">
+          <div class="card-head">
+            <h3>运行日志</h3>
+            <div class="log-head-actions">
+              <span class="muted small" id="run-log-meta">实时</span>
+            </div>
+          </div>
+          <div class="log-view" id="run-log"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 对话 ===== -->
+    <section class="page" id="page-chat" hidden>
+      <header class="page-head compact">
+        <div><h1>对话</h1></div>
+        <div class="head-actions"><span class="pill" id="chat-model-pill">对话就绪</span></div>
+      </header>
+      <div class="chat-layout">
+        <aside class="chat-sidebar">
+          <div class="side-head"><span class="side-title">会话</span><button class="link-btn" id="btn-new-chat">+ 新对话</button></div>
+          <input id="chat-search" class="text-input chat-search" placeholder="搜会话标题…" />
+          <div class="chat-list" id="chat-list"></div>
+          <label class="hist-toggle side-toggle"><input type="checkbox" id="show-deleted-chats"> 显示已删除</label>
+        </aside>
+        <div class="chat-wrap">
+          <div class="messages" id="messages"></div>
+          <form class="composer" id="chat-form">
+            <div class="cmp-box">
+              <div class="attach-chips" id="chat-attach-chips"></div>
+              <textarea id="chat-input" rows="2" placeholder="发消息或创建任务，/ 调用指令，@ 文件或对话"></textarea>
+              <div class="cmp-row">
+                <button type="button" class="round" id="btn-attach" title="添加附件">+</button>
+                <button type="button" class="chip-btn" id="btn-tools">工具</button>
+                <button type="button" class="chip-btn" id="btn-chat-settings">对话设置</button>
+                <button type="button" class="chip-btn" id="btn-chat-params">对话参数</button>
+                <span class="spacer"></span>
+                <span class="model-tag-wrap">
+                  <button type="button" class="model-tag model-tag-btn" id="chat-model-tag" aria-haspopup="true" aria-expanded="false">Gemma-4B · 本地</button>
+                  <div class="model-menu" id="chat-model-menu" hidden>
+                    <div class="model-menu-head">模型</div>
+                    <div class="model-menu-list" id="chat-model-options"></div>
+                  </div>
+                </span>
+                <button type="button" id="btn-stop" class="stop-btn" hidden>停止</button>
+                <button type="submit" id="btn-send" class="send-btn">↑</button>
+              </div>
+            </div>
+            <input type="file" id="chat-file" multiple hidden>
+            <div class="hint" id="chat-hint"></div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== Agent ===== -->
+    <section class="page" id="page-agent" hidden>
+      <header class="page-head compact">
+        <div><h1>Agent</h1><p class="sub">描述任务 · 自动计划 · 在工作区或整台电脑内执行</p></div>
+        <div class="head-actions"><span class="pill" id="agent-pill">待命</span></div>
+      </header>
+      <div class="agent-shell" id="agent-shell">
+        <div class="agent-thread" id="agent-thread" hidden>
+          <div class="agent-thread-head">
+            <span class="agent-tab active">对话</span>
+            <button type="button" class="link-btn" id="agent-clear">清空</button>
+          </div>
+          <div class="messages" id="agent-messages"></div>
+          <details class="agent-details" id="agent-details" hidden>
+            <summary>计划与执行记录</summary>
+            <div class="agent-detail-grid">
+              <div><label class="mini-label">计划</label><div class="plan-list" id="agent-plan"><div class="empty small">输入任务后自动生成计划</div></div></div>
+              <div><label class="mini-label">执行记录</label><div class="trace" id="agent-trace"><div class="empty small">还没有执行记录</div></div></div>
+            </div>
+          </details>
+        </div>
+
+        <div class="agent-empty" id="agent-empty">
+          <div class="agent-empty-mark">✦</div>
+          <h2>想让 Agent 做什么？</h2>
+          <p class="muted">描述任务，它会先给出计划，再在工作区或整台电脑范围内执行。</p>
+        </div>
+
+        <div class="agent-compose" id="agent-compose">
+          <form class="composer" id="agent-form">
+            <div class="cmp-box">
+              <textarea id="agent-input" rows="3" placeholder="描述你想要构建的内容，/ 调用指令，@ 文件或对话"></textarea>
+              <div class="cmp-row">
+                <button type="button" class="round" id="agent-new" title="新任务">+</button>
+                <span class="agent-scope-wrap">
+                  <button type="button" class="agent-chip" id="agent-scope" aria-haspopup="true" aria-expanded="false">
+                    <span>📁</span><b id="agent-scope-text">默认工作区</b><span class="chev">⌄</span>
+                  </button>
+                  <div class="agent-scope-menu" id="agent-scope-menu" hidden>
+                    <button type="button" data-scope="root">灵枢文件夹</button>
+                    <button type="button" data-scope="all">整台电脑</button>
+                    <button type="button" data-scope="custom">选择其他文件夹…</button>
+                  </div>
+                </span>
+                <span class="spacer"></span>
+                <select id="agent-perm" class="perm-select" title="权限范围">
+                  <option value="workspace">工作区内修改</option>
+                  <option value="view">仅限查看</option>
+                  <option value="full">完全权限</option>
+                </select>
+                <span class="model-tag-wrap agent-model-wrap">
+                  <button type="button" class="model-tag model-tag-btn" id="agent-model-label" aria-haspopup="true" aria-expanded="false" title="选择对话模型">对话模型</button>
+                  <div class="model-menu agent-model-menu" id="agent-model-menu" hidden>
+                    <div class="model-menu-head">模型</div>
+                    <div class="model-menu-list" id="agent-model-options"></div>
+                  </div>
+                </span>
+                <button type="submit" id="agent-send" class="send-btn">↑</button>
+              </div>
+            </div>
+            <div class="hint" id="agent-hint"></div>
+            <input id="agent-workdir" type="hidden" value="">
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 画图 ===== -->
+    <section class="page" id="page-draw" hidden>
+      <header class="page-head compact">
+        <div class="draw-head-left"><h1>画图</h1>
+          <ul class="subtabs" id="draw-subtabs">
+            <li><button class="subtab active" data-view="form">表单</button></li>
+            <li><button class="subtab" data-view="canvas">画布</button></li>
+          </ul>
+        </div>
+        <div class="head-actions"><button class="ghost" id="btn-history">历史</button><button class="ghost" id="draw-open-folder">打开作品文件夹</button></div>
+      </header>
+      <div class="draw-wrap" id="draw-form-view">
+        <div class="draw-form">
+          <div class="field">
+            <label>画图模型</label>
+            <select id="draw-model" class="text-input"><option>扫描中…</option></select>
+            <div class="muted small" id="draw-model-note">自动识别 models 目录</div>
+          </div>
+          <div class="field">
+            <label>描述你想要的画面</label>
+            <textarea id="prompt" rows="4" placeholder="例如：一只橘猫在樱花树下睡觉，阳光透过花瓣，水彩风格"></textarea>
+            <div class="muted small">可以直接写中文。写清主体、场景、风格、光线，效果更好。</div>
+          </div>
+          <details class="field">
+            <summary>反向提示词（可选）</summary>
+            <textarea id="negative" rows="2" placeholder="不想出现的元素"></textarea>
+            <div class="muted small">turbo 模型 cfg=1.0 时反向项不参与计算，只随作业记录。</div>
+          </details>
+          <div class="field">
+            <label>画面比例和清晰度</label>
+            <div class="chips" id="ratio-group">
+              <button class="chip" data-ratio="1:1">1:1</button>
+              <button class="chip" data-ratio="4:3">4:3</button>
+              <button class="chip" data-ratio="3:4">3:4</button>
+              <button class="chip" data-ratio="16:9">16:9</button>
+              <button class="chip" data-ratio="9:16">9:16</button>
+            </div>
+            <div class="chips" id="res-group">
+              <button class="chip" data-res="1K">1K</button>
+              <button class="chip" data-res="2K">2K</button>
+              <button class="chip" data-res="4K">4K</button>
+            </div>
+            <div class="muted small" id="draw-size-note">实际尺寸 1024×1024</div>
+          </div>
+          <details class="field"><summary>LoRA（可选）</summary><div class="muted small">当前版本不支持 LoRA。</div></details>
+          <div class="field-row">
+            <div class="field"><label>步数</label><input id="steps" type="number" min="8" max="20" value="8"></div>
+            <div class="field"><label>张数</label>
+              <select id="batch">
+                <option value="1">1 张</option>
+                <option value="2">2 张</option>
+                <option value="3">3 张</option>
+                <option value="4">4 张</option>
+              </select></div>
+            <div class="field"><label>种子</label><input id="seed" type="number" value="-1"></div>
+          </div>
+          <p class="muted small">1 张最稳；2–4 张连续出图，更吃显存和时间，显存不够时会被护栏中止。</p>
+          <div class="field"><label>参考图</label>
+            <div class="muted small">参考图重绘走「画布」标签：以最近出图为底图、涂抹后生成。</div>
+          </div>
+          <button class="primary wide" id="btn-generate">生成</button>
+          <div class="hint" id="draw-hint"></div>
+        </div>
+        <div class="draw-result">
+          <div class="progress" id="progress" hidden>
+            <div class="bar"><i id="bar-fill"></i></div>
+            <div class="progress-text" id="progress-text"></div>
+          </div>
+          <div class="gallery" id="gallery"><div class="empty big">生成的图片会显示在这里<br><span class="muted small">同时自动保存在电脑上</span></div></div>
+        </div>
+      </div>
+      <div class="canvas-wrap" id="draw-canvas-view" hidden>
+        <div class="canvas-toolbar">
+          <button class="icon-btn" id="cv-load-last">以最近出图为底图</button>
+          <button class="icon-btn" id="cv-fit">适应窗口</button>
+          <button class="icon-btn" id="cv-100">100%</button>
+          <span class="muted small" id="cv-sel">未选中区域</span>
+          <span class="spacer"></span>
+          <button class="icon-btn" id="cv-open-folder">打开作品文件夹</button>
+        </div>
+        <div class="canvas-stage" id="canvas-stage">
+          <canvas id="canvas" width="1024" height="1024"></canvas>
+          <div class="sel-box" id="sel-box" hidden></div>
+        </div>
+        <div class="floating-bar">
+          <input id="cv-prompt" placeholder="描述要画什么…" />
+          <select id="cv-model" class="cv-model" aria-label="画图模型"></select>
+          <button class="primary" id="cv-generate" disabled>生成</button>
+        </div>
+        <div class="hint" id="cv-hint">画布重绘（mask）只支持 1:1 1024²；其他尺寸先用表单生成。</div>
+      </div>
+    </section>
+
+    <!-- ===== 设置 ===== -->
+    <section class="page" id="page-settings" hidden>
+      <header class="page-head"><div><h1>设置</h1><p class="sub">模型与文件 · 生成参数 · 界面与关于</p></div>
+        <div class="head-actions">
+          <button class="ghost" id="open-hw-drawer">本机配置</button>
+          <button class="primary" id="set-save">保存设置</button>
+        </div></header>
+      <div class="settings-grid">
+        <div class="settings-col settings-col-left">
+          <div class="card">
+            <div class="card-head"><h3>模型与文件</h3></div>
+            <label class="mini-label">出图路径</label>
+            <input id="set-output" class="text-input">
+            <label class="mini-label">日志与显存 CSV</label>
+            <input id="set-logs" class="text-input">
+            <label class="mini-label">聊天记录</label>
+            <input id="set-chats" class="text-input">
+            <div class="row-actions"><button class="ghost" id="set-paths-save">保存路径</button>
+              <button class="link-btn" id="set-open-output">打开</button></div>
+            <p class="muted small">改路径要重启 gateway；旧目录里的文件不会自动搬家。</p>
+          </div>
+          <div class="card about-card">
+            <div class="card-head"><h3>关于灵枢</h3><span class="muted small">ZEROSOURCE</span></div>
+            <div class="info-row"><span>版本</span><b>0.3.0</b></div>
+            <div class="info-row"><span>作者</span><b>芙夏辰光 · 零源科技-ZEROSOURCE</b></div>
+            <div class="row-actions"><button class="ghost" id="set-open-logs">打开日志目录</button>
+              <button class="ghost" id="set-open-chats">打开聊天目录</button></div>
+          </div>
+        </div>
+        <div class="settings-col settings-col-right">
+          <div class="card">
+            <div class="card-head"><h3>生成参数</h3><span class="pill" id="set-rec-pill">本机推荐</span></div>
+            <div id="settings-fields"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h3>界面</h3></div>
+            <label class="mini-label">外观</label>
+            <select id="set-theme" class="text-input"><option value="light" selected>浅色（默认）</option><option value="dark">深色</option></select>
+            <label class="mini-label">界面语言</label>
+            <select id="set-lang" class="text-input"><option value="zh">简体中文</option></select>
+            <p class="muted small">界面固定简体中文；切换会在后续版本开放。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 工具面板 -->
+<div class="popover" id="tools-popover" hidden>
+  <div class="pop-head"><b>工具调用</b><label class="switch"><input type="checkbox" id="tools-master" checked><i></i></label></div>
+  <p class="muted small">模型回答时可以自己调用下面这些工具</p>
+  <div id="tools-list"></div>
+  <p class="muted small" id="tools-note">当前可用：当前时间、计算器、读取文件、查看文件夹、写入文件、联网搜索、读取网页。执行命令不开放。</p>
+</div>
+
+<!-- 对话设置 -->
+<div class="modal-scrim" id="chat-settings-scrim" hidden></div>
+<div class="modal" id="chat-settings-modal" hidden>
+  <div class="modal-head"><b>对话设置</b><button class="icon-btn" id="btn-close-chat-settings">×</button></div>
+  <div class="modal-body">
+    <label class="mini-label">系统提示词</label>
+    <textarea id="cs-system" rows="4" placeholder="例如：你是一名资深的 Python 工程师，回答简洁，代码要有中文注释。"></textarea>
+    <p class="muted small">每次对话都会先发给模型，用来设定角色、语气、回答格式。留空 = 不设置。</p>
+    <details class="adv" open><summary>高级：模型参数</summary>
+      <p class="muted small">留空 = 用模型自带的推荐值。改了效果不好，点「恢复默认」即可。</p>
+      <div class="param-grid" id="cs-params"></div>
+    </details>
+    <div class="modal-actions">
+      <button class="ghost" id="cs-reset">恢复默认</button>
+      <span class="spacer"></span>
+      <button class="ghost" id="cs-cancel">取消</button>
+      <button class="primary" id="cs-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 对话参数（原运行页「自动决定的参数」，搬到对话页） -->
+<div class="modal-scrim" id="chat-params-scrim" hidden></div>
+<div class="modal chat-params-modal" id="chat-params-modal" hidden>
+  <div class="modal-head"><b>对话参数</b><button class="icon-btn" id="btn-close-chat-params">×</button></div>
+  <div class="modal-body chat-params-body">
+    <div class="card">
+      <div class="card-head"><h3>自动决定的参数</h3><button class="link-btn" id="ov-redetect">重新检测</button></div>
+      <div class="kv-grid" id="ov-params"></div>
+      <div class="why" id="ov-why"></div>
+      <span class="pill ok" id="ov-fit">整块进显存</span>
+    </div>
+
+    <div class="card">
+      <label class="mini-label">上下文长度</label>
+      <div class="chips" id="run-ctx-chips">
+        <button class="chip" data-ctx="auto">自动</button>
+        <button class="chip" data-ctx="4096">4K</button>
+        <button class="chip" data-ctx="8192">8K</button>
+        <button class="chip" data-ctx="16384">16K</button>
+        <button class="chip" data-ctx="32768">32K</button>
+      </div>
+      <p class="muted small" id="run-ctx-note">越长越能读长文档，但更占显存；「自动」= 本机能装下的推荐值。</p>
+      <div class="switch-row"><div><b>思考模式</b><p class="muted small">先想再答，更准但更慢</p></div>
+        <label class="switch"><input type="checkbox" id="run-thinking"><i></i></label></div>
+      <div class="switch-row"><div><b>思考预算</b><p class="muted small">思考被截断时会在气泡里标注</p></div>
+        <span class="muted small" id="run-think-budget">—</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><h3>推理加速与稳定性</h3></div>
+      <div class="info-row"><span>Flash Attention</span><b id="run-fa">—</b></div>
+      <div class="info-row"><span>KV 缓存精度</span><b id="run-kv">—</b></div>
+      <div class="info-row"><span>线程 / 批大小</span><b id="run-threads">—</b></div>
+      <div class="info-row"><span>显存护栏</span><b id="run-guard">—</b></div>
+      <p class="muted small">以上均为自动参数；要改显存档位去设置页。KV 精度锁定 f16。</p>
+    </div>
+
+    <div class="modal-actions">
+      <span class="spacer"></span>
+      <button class="primary" id="btn-chat-params-close">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 本机配置抽屉（放在设置右上角按钮左边打开；只看硬件与自动参数） -->
+<aside class="drawer" id="hardware-drawer" hidden>
+  <div class="drawer-head"><b>本机配置</b><button class="icon-btn" id="btn-close-hw-drawer">×</button></div>
+  <div class="drawer-body">
+    <div class="ov-grid" id="hw-drawer-cards" style="grid-template-columns:1fr"></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-head"><h3>本机硬件（自动识别）</h3><button class="link-btn" id="hw-redetect">重新检测</button></div>
+      <div class="kv-grid" id="hw-drawer-params"></div>
+      <div class="why" id="hw-drawer-why">正在读取本机硬件…</div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-head"><h3>推理引擎</h3><span class="pill" id="set-engine-badge">本地</span></div>
+      <div class="info-row"><span>llama.cpp</span><b id="set-llama">—</b></div>
+      <div class="info-row"><span>sd.cpp</span><b id="set-sd">—</b></div>
+      <div class="info-row"><span>对话端口</span><b id="set-port-chat">—</b></div>
+      <div class="info-row"><span>出图端口</span><b id="set-port-sd">—</b></div>
+      <div class="info-row"><span>网关端口</span><b id="set-port-gateway">—</b></div>
+      <p class="muted small engine-note">引擎随包运行，由网关在 127.0.0.1 上拉起；启动和关闭在运行页「模型与服务」。</p>
+    </div>
+  </div>
+</aside>
+<div class="scrim" id="hw-scrim" hidden></div>
+
+<!-- 作品历史抽屉 -->
+<aside class="drawer" id="history-drawer" hidden>
+  <div class="drawer-head"><b>作品历史</b><button class="icon-btn" id="btn-close-history">×</button></div>
+  <div class="drawer-body">
+    <div class="hist-tools"><label class="hist-toggle"><input type="checkbox" id="sel-all"> 全选</label>
+      <button class="link-btn danger" id="btn-del-selected" disabled>删除所选（0）</button></div>
+    <div id="history-body"></div>
+  </div>
+</aside>
+<div class="scrim" id="history-scrim" hidden></div>
+
+<!-- 模型管理：列出 models 里的文件，能删掉不用的（进回收站） -->
+<div class="modal-scrim" id="model-mgr-scrim" hidden></div>
+<div class="modal model-mgr-modal" id="model-mgr-modal" hidden>
+  <div class="modal-head"><b>模型管理</b><button class="icon-btn" id="model-mgr-close">×</button></div>
+  <div class="modal-body">
+    <p class="muted small">models 目录里已有的模型文件。当前配置正在用的不能删；其余可以删，删掉会进回收站，随时能还原。</div>
+    <div class="model-mgr-body" id="model-mgr-body"><div class="muted small">读取中…</div></div>
+    <div class="modal-actions"><span class="spacer"></span><button class="ghost" id="model-mgr-ok">关闭</button></div>
+  </div>
+</div>
+
+<!-- 导入模型后：问要不要删掉本机那份原文件 -->
+<div class="modal-scrim" id="model-src-scrim" hidden></div>
+<div class="modal model-src-modal" id="model-src-modal" hidden>
+  <div class="modal-head"><b>已导入 models 目录</b><button class="icon-btn" id="model-src-close">×</button></div>
+  <div class="modal-body">
+    <p class="muted small" id="model-src-text">模型已经放进 models。如果原文件还留在本机别处，会重复占用同样大小的空间。</p>
+    <div id="model-src-list" class="model-src-list"></div>
+    <label class="mini-label">或者手动指定原文件完整路径</label>
+    <input class="text-input" id="model-src-input" placeholder="例如 D:\下载\xxx.gguf">
+    <p class="muted small" id="model-src-note">删除会进回收站，随时可以还原；只允许删与 models 里同名同大小的文件。</p>
+    <div class="modal-actions">
+      <span class="spacer"></span>
+      <button class="ghost" id="model-src-keep">原文件留着</button>
+      <button class="primary" id="model-src-delete">删除原文件</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/static/js/app.js?v=67"></script>
+</body>
+</html>
