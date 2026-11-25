@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+starlette
+httpx
+pydantic
+PyYAML
+pillow
+PySide6
